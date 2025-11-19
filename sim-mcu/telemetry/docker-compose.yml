@@ -1,0 +1,54 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto
+    container_name: mosquitto
+    restart: unless-stopped
+    ports: ["1883:1883"]
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:rw
+      - mosq_data:/mosquitto/data
+      - mosq_log:/mosquitto/log
+
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    restart: unless-stopped
+    depends_on: [mosquitto, influxdb]
+    environment:
+      - INFLUX_TOKEN=super-secret-token
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports: ["3001:3000"]    # fix port
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=adminpass
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+  influxdb:
+    image: influxdb:2
+    container_name: influxdb
+    restart: unless-stopped
+    ports: ["8086:8086"]
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpass
+      - DOCKER_INFLUXDB_INIT_ORG=telemetry
+      - DOCKER_INFLUXDB_INIT_BUCKET=raw_7d
+      - DOCKER_INFLUXDB_INIT_RETENTION=168h     # 7 days
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=super-secret-token
+    volumes:
+      - influx_data:/var/lib/influxdb2
+
+
+volumes:
+  influx_data:
+  grafana_data:
+  mosq_data:
+  mosq_log:
